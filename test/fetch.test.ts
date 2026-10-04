@@ -75,6 +75,18 @@ describe('languages that share a script with another', () => {
   test('Manipuri in Bengali script stays Manipuri', () => {
     expect(pageLang('মণিপুরগী', 'mni')).toBe('mni')
   })
+  test('the danda is shared punctuation, not a sign of Hindi', () => {
+    // Chandigarh, November 2025: 117 Punjabi pairs were labelled Hindi, because "।" sits in the
+    // Devanagari block and the first script found won.
+    expect(pageLang('ਪ੍ਰਧਾਨ ਮੰਤਰੀ 27 ਨਵੰਬਰ ਨੂੰ ਸਕਾਈਰੂਟ ਦੇ ਇਨਫਿਨਿਟੀ ਕੈਂਪਸ ਦਾ ਉਦਘਾਟਨ ਕਰਨਗੇ।', 'pa')).toBe('pa')
+    expect(pageLang('ਪ੍ਰਧਾਨ ਮੰਤਰੀ ਉਦਘਾਟਨ ਕਰਨਗੇ।', '')).toBe('pa')
+    expect(pageLang('প্রধানমন্ত্রী আজ উদ্বোধন করবেন।', '')).toBe('bn')
+  })
+
+  test('the script with the most letters wins, so an English acronym in an Indic headline does not', () => {
+    expect(pageLang('ISRO ने आज नया उपग्रह छोड़ा', '')).toBe('hi')
+  })
+
   test('with no hint, Latin is English', () => {
     expect(pageLang('Union Minister visits Kohima', '')).toBe('en')
   })

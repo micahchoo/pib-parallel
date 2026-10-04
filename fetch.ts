@@ -38,12 +38,13 @@ const LANGS: Record<string, string> = {
   Maithili: 'mai', Nepali: 'ne', Sindhi: 'sd', Mizo: 'lus', Khasi: 'kha', Tenyidei: 'njm',
 }
 
-// One language's script, tried in this order; Latin is last so stray English
-// words in an Indic release do not claim it.
+// Each language's script. The danda and double danda (U+0964-5) sit in the
+// Devanagari block but end sentences in Punjabi, Bengali, Odia and Assamese
+// too, so they are left out: with them, 117 Punjabi pairs were labelled Hindi.
 const SCRIPTS: Array<[string, RegExp]> = [
-  ['hi', /[\u0900-\u097F]/], ['ur', /[\u0600-\u06FF]/], ['bn', /[\u0980-\u09FF]/], ['pa', /[\u0A00-\u0A7F]/],
-  ['gu', /[\u0A80-\u0AFF]/], ['or', /[\u0B00-\u0B7F]/], ['ta', /[\u0B80-\u0BFF]/], ['te', /[\u0C00-\u0C7F]/],
-  ['kn', /[\u0C80-\u0CFF]/], ['ml', /[\u0D00-\u0D7F]/], ['mni', /[\uABC0-\uABFF]/], ['en', /[A-Za-z]/],
+  ['hi', /[\u0900-\u0963\u0966-\u097F]/g], ['ur', /[\u0600-\u06FF]/g], ['bn', /[\u0980-\u09FF]/g], ['pa', /[\u0A00-\u0A7F]/g],
+  ['gu', /[\u0A80-\u0AFF]/g], ['or', /[\u0B00-\u0B7F]/g], ['ta', /[\u0B80-\u0BFF]/g], ['te', /[\u0C00-\u0C7F]/g],
+  ['kn', /[\u0C80-\u0CFF]/g], ['ml', /[\u0D00-\u0D7F]/g], ['mni', /[\uABC0-\uABFF]/g], ['en', /[A-Za-z]/g],
 ]
 // Languages that share a script: a Devanagari page could be any of them, so a
 // hint naming one of them wins.
@@ -162,9 +163,18 @@ export function parseRelease(prid: string, page: string, hint = ''): Release {
   }
 }
 
-/** The page carries no lang attribute, so the language is the script of its headline, disambiguated by the feed that found it. */
+/**
+ * The page carries no lang attribute, so the language is the script with the
+ * most letters in its headline (an English acronym in a Hindi headline does
+ * not make it English), disambiguated by the feed that found it.
+ */
 export function pageLang(headline: string, hint: string) {
-  const seen = SCRIPTS.find(([, re]) => re.test(headline))?.[0] ?? ''
+  let seen = ''
+  let most = 0
+  for (const [code, re] of SCRIPTS) {
+    const n = headline.match(re)?.length ?? 0
+    if (n > most) (seen = code), (most = n)
+  }
   return hint && (hint === seen || SHARED_SCRIPT[hint] === seen) ? hint : seen || hint
 }
 

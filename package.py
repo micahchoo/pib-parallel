@@ -9,7 +9,8 @@
 reads data/2025-11/*/pairs.jsonl (fetch.ts), sentences.jsonl (align.py) and,
 if present, copies.jsonl (copies.ts), and writes data/2025-11/release/:
 
-  sentences.parquet   one row per distinct sentence pair. A pair PIB repeats
+  sentences.parquet   one row per distinct sentence pair, each side mostly in
+                      its own script. A pair PIB repeats
                       across releases ("Friends," opens hundreds of speeches)
                       is one row with its count in `occurrences`.
   documents.parquet   one row per pair of documents: an English release and
@@ -33,11 +34,32 @@ def posted(dateline: str) -> tuple[str, str]:
     return f"{m.group(3)}-{MONTHS[m.group(2)]:02d}-{int(m.group(1)):02d}", (m.group(4) or "").strip()
 
 
+DEVANAGARI = "\u0900-\u0963\u0966-\u097f"
+BENGALI = "\u0980-\u09ff"
+LATIN = "A-Za-z\u00c0-\u024f"
+SCRIPT = {
+    "en": LATIN, "hi": DEVANAGARI, "mr": DEVANAGARI, "ne": DEVANAGARI, "gom": DEVANAGARI, "ur": "\u0600-\u06ff",
+    "bn": BENGALI, "as": BENGALI, "mni": BENGALI, "pa": "\u0a00-\u0a7f", "gu": "\u0a80-\u0aff", "or": "\u0b00-\u0b7f",
+    "ta": "\u0b80-\u0bff", "te": "\u0c00-\u0c7f", "kn": "\u0c80-\u0cff", "ml": "\u0d00-\u0d7f",
+    "lus": LATIN, "kha": LATIN, "njm": LATIN,
+}
+
+
+def in_script(lang: str, text: str) -> bool:
+    """Whether most of the text's letters are in its language's script. 3.5% of the November 2025
+    pairs were links, hashtags, staff initials or English lines on a translated page, which align
+    because they match themselves. A Latin-script language cannot be told from English this way."""
+    letters = [c for c in text if c.isalpha()]
+    return bool(letters) and sum(1 for c in letters if re.match(f"[{SCRIPT[lang]}]", c)) * 2 > len(letters)
+
+
 def fold(pairs, copies: dict) -> list[dict]:
-    """Distinct sentence pairs, each with how often it occurred and, where it was sampled, whether
-    PIB's text is a near copy of Google Translate's."""
+    """Distinct sentence pairs in their own scripts, each with how often it occurred and, where it was
+    sampled, whether PIB's text is a near copy of Google Translate's."""
     rows: dict[tuple, dict] = {}
     for p in pairs:
+        if not (in_script("en", p["en"]) and in_script(p["lang"], p["text"])):
+            continue
         key = (p["lang"], p["en"], p["text"])
         if key in rows:
             rows[key]["occurrences"] += 1
