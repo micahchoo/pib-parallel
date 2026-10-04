@@ -1,0 +1,29 @@
+3	PIB Delhi	2=हिन्दी; 1=English; 3=Urdu
+1	PIB Mumbai	1=English; 42=Konkani; 9=Marathi
+5	PIB Hyderabad	16=Telugu; 1=English
+6	PIB Chennai	11=Tamil; 1=English; 2=हिन्दी
+17	PIB Chandigarh	6=Punjabi; 1=English
+19	PIB Kolkata	4=Bengali; 1=English
+20	PIB Bengaluru	8=Kannada; 1=English
+21	PIB Bhubaneswar	18=Odia; 1=English
+22	PIB Ahmedabad	13=Gujarati; 1=English
+23	PIB Guwahati	10=Assamese; 1=English
+24	PIB Thiruvananthpuram	15=Malayalam; 1=English
+30	PIB Imphal	14=Manipuri; 1=English
+31	PIB Mizoram	32=Mizo; 1=English
+32	PIB Agartala	37=Bengali-TR; 1=English
+33	PIB Gangtok	29=Nepali; 1=English
+34	PIB Kohima	31=Tenyidei; 1=English
+35	PIB Shillong	30=Khasi; 1=English
+36	PIB Itanagar	36=Hindi_AP; 1=English
+37	PIB Lucknow	34=Hindi_UP; 1=English
+38	PIB Bhopal	35=Hindi_MP; 1=English
+39	PIB Jaipur	33=Hindi_RJ; 1=English
+40	PIB Patna	38=Hindi_Br; 1=English
+41	PIB Ranchi	39=Hindi_Jh; 1=English
+42	PIB Shimla	40=Hindi_Hp; 1=English
+43	PIB Raipur	41=Hindi_Cg; 1=English
+44	PIB Jammu and Kashmir	44=Urdu_JK; 43=Hindi_JK; 1=English
+45	PIB Vijayawada	46=Telugu_Vw; 1=English
+46	PIB Dehradun	1=English; 45=Hindi_Ddn
+48	National	2=हिन्दी; 1=English
