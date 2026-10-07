@@ -80,7 +80,9 @@ const POST = /class="(?:twitter-tweet|instagram-media)|(?:twitter|x)\.com\/\w+\/
 // case, so a following sentence ("...gov.in. Next") is not taken with it, and
 // may have a space after a dot or round [at] and [dot] ("trai. gov.in",
 // "csm-upsc [at] nic [dot] in"): all forms found in the November 2025 data.
-const EMAIL = /[\w+-]+(?:(?:\.|\s?\[dot\]\s?)[\w+-]+)*\.?\s?(?:@|\[at\])\s?[a-z0-9-]+(?:(?:\.\s?|\s?\[dot\]\s?)[a-z0-9-]+)+/g
+// An address typed in capitals ("BSNLGOGREENATD@GMAIL.COM", July 2019) has an
+// upper-case domain with no space after its dots.
+const EMAIL = /[\w+-]+(?:(?:\.|\s?\[dot\]\s?)[\w+-]+)*\.?\s?(?:@|\[at\])\s?(?:[a-z0-9-]+(?:(?:\.\s?|\s?\[dot\]\s?)[a-z0-9-]+)+|[A-Z0-9-]+(?:\.[A-Z0-9-]+)+)/g
 const ZERO = '[0०০੦૦୦௦౦೦൦۰٠]'
 // A mobile's first digit, 6 to 9, in every script that writes its own digits:
 // a Bengali page wrote a WhatsApp number in Bengali digits, which [6-9] missed.
