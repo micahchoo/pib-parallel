@@ -94,7 +94,9 @@ const SEP = '[\\s-]?'
 // A number after +91, which drops the trunk 0 ("+91-33-22361401", "+ 91-11-..."),
 // or kept in right-to-left order on an Urdu page ("-23000761 +91-40"); a
 // landline with its STD code; a mobile; a toll-free number, Indian or "1-800".
-// Never digits that touch a letter (an app id, a file name) or run on into more.
+// Never digits after a letter (an app id, a file name) or running on into more
+// digits. A letter after is allowed: Kannada and Telugu join a case ending to
+// the number ("+91-11-23210481ರಲ್ಲಿ", August 2023).
 const PHONE = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{Nd}])(?:${[
     `\\+\\s?91${SEP}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
@@ -102,7 +104,7 @@ const PHONE = new RegExp(
     `(?:\\+\\s?91${SEP})?${ZERO}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
     `(?:\\+\\s?91${SEP})?${MOBILE_FIRST}${D}{4}${SEP}${D}{5}`,
     `1${SEP}800${SEP}${D}{2,3}${SEP}${D}{3,4}`,
-  ].join('|')})(?![\\p{L}\\p{M}\\p{Nd}])`,
+  ].join('|')})(?!\\p{Nd})`,
   'gu',
 )
 

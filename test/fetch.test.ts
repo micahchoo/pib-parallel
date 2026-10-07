@@ -235,6 +235,10 @@ describe('what the corpus must not carry', () => {
       // Found by audit.py in the packaged month: a mobile split 5-5, and one in Bengali digits.
       ['ਸੰਪਰਕ 74283-21144 ਤੇ', 'ਸੰਪਰਕ <phone> ਤੇ'],
       ['হোয়াটসঅ্যাপ নম্বর ৭২১৭৭৩৫৩৭২ চালু', 'হোয়াটসঅ্যাপ নম্বর <phone> চালু'],
+      // August 2023, blocked by audit.py: Kannada and Telugu join a case ending to the number.
+      ['ದೂರವಾಣಿ ಸಂಖ್ಯೆ +91-11-23210481ರಲ್ಲಿ ಸಂಪರ್ಕಿಸಿ', 'ದೂರವಾಣಿ ಸಂಖ್ಯೆ <phone>ರಲ್ಲಿ ಸಂಪರ್ಕಿಸಿ'],
+      ['టెలిఫోన్ నంబర్ +91-11-23237922లో సంప్రదించవచ్చు', 'టెలిఫోన్ నంబర్ <phone>లో సంప్రదించవచ్చు'],
+      ['ಸಹಾಯವಾಣಿ 7827170170ಗೆ ಕರೆ ಮಾಡಿ', 'ಸಹಾಯವಾಣಿ <phone>ಗೆ ಕರೆ ಮಾಡಿ'],
       // July 2019, blocked by audit.py: an address in capitals.
       ['through e-mail on “BSNLGOGREENATD@GMAIL.COM’ at the earliest', 'through e-mail on “<email>’ at the earliest'],
       ['WRITE TO INFO@PIB.GOV.IN. THE OFFICE', 'WRITE TO <email>. THE OFFICE'],
