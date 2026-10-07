@@ -4,7 +4,7 @@ A pipeline that turns the Press Information Bureau's press releases into paralle
 
 The Press Information Bureau (PIB, [pib.gov.in](https://www.pib.gov.in)) is the Government of India's press office. It publishes each release in English and links the same release translated by its offices: 15 of India's 22 scheduled languages, and Mizo, Khasi and Tenyidei. Office and language codes are in `offices.tsv`. Earlier PIB corpora (CVIT-PIB, PMIndia) end around 2019. This one can fetch any month since then, from every office, and it records each pair's release IDs.
 
-One month, November 2025, is published as a dataset: [huggingface.co/datasets/micaha/pib-parallel](https://huggingface.co/datasets/micaha/pib-parallel). Its card has the numbers and the limits. Use this repository to fetch other months.
+Months are published as a dataset, one split per month: [huggingface.co/datasets/micahchoo/pib-parallel](https://huggingface.co/datasets/micahchoo/pib-parallel). Its card has the numbers and the limits. Use this repository to fetch other months.
 
 ## What you need
 
@@ -55,6 +55,14 @@ uv run package.py data/2025-11
 
 It writes `data/2025-11/release/sentences.parquet`, one row per distinct sentence pair with how often it occurred, and `documents.parquet`, one row per pair of documents.
 
+**5. Check, and publish.** `audit.py` searches the packaged month for contact details again, with its own patterns rather than the fetcher's, and exits 1 if it finds any: an audit that shared the fetcher's patterns once missed what they missed. `publish.sh` runs a crawled month through every step, rebuilding it from the page cache with the current parser first, and stops at the first failure:
+
+```sh
+./publish.sh 2019-07     # rebuild, align, copies, package, audit, card.py, upload.py
+```
+
+`card.py` writes the dataset card from `card/template.md` and every packaged month; `upload.py` sends one month and the card in one commit. Both name this project's dataset; change `REPO` in `upload.py` to publish your own. The crawl passes, with their office and language codes, are in `passes.tsv`.
+
 ## What the fetcher leaves out
 
 - **Embedded posts.** A tweet or an Instagram post inside a release is third-party material, and on translated pages most were left in English. They are removed, known by their tag or, where an editor dropped it, by their link. A tweet pasted as plain paragraphs cannot be told from prose and stays.
@@ -86,7 +94,7 @@ So: credit PIB, leave the posts out (the fetcher does), and do not present a mac
 
 ```sh
 bun test
-uv run --no-project --with pytest --with numpy pytest -p no:cacheprovider test/
+uv run --no-project --with pytest --with numpy --with pyyaml pytest -p no:cacheprovider test/
 ```
 
 The expected outputs come from real pages: the film-festival layout whose style sheet the parser once read as text, the email forms an audit of the published month found after the first rules.

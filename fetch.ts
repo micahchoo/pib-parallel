@@ -82,6 +82,11 @@ const POST = /class="(?:twitter-tweet|instagram-media)|(?:twitter|x)\.com\/\w+\/
 // "csm-upsc [at] nic [dot] in"): all forms found in the November 2025 data.
 const EMAIL = /[\w+-]+(?:(?:\.|\s?\[dot\]\s?)[\w+-]+)*\.?\s?(?:@|\[at\])\s?[a-z0-9-]+(?:(?:\.\s?|\s?\[dot\]\s?)[a-z0-9-]+)+/g
 const ZERO = '[0०০੦૦୦௦౦೦൦۰٠]'
+// A mobile's first digit, 6 to 9, in every script that writes its own digits:
+// a Bengali page wrote a WhatsApp number in Bengali digits, which [6-9] missed.
+const MOBILE_FIRST = `[6-9${[0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6, 0x0d66, 0x0660, 0x06f0]
+  .map((zero) => `${String.fromCodePoint(zero + 6)}-${String.fromCodePoint(zero + 9)}`)
+  .join('')}]`
 const D = '\\p{Nd}'
 const SEP = '[\\s-]?'
 // A number after +91, which drops the trunk 0 ("+91-33-22361401", "+ 91-11-..."),
@@ -93,7 +98,7 @@ const PHONE = new RegExp(
     `\\+\\s?91${SEP}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
     `-?${D}{6,8}\\s?\\+\\s?91${SEP}${D}{2,4}`,
     `(?:\\+\\s?91${SEP})?${ZERO}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
-    `(?:\\+\\s?91${SEP})?[6-9]${D}{9}`,
+    `(?:\\+\\s?91${SEP})?${MOBILE_FIRST}${D}{4}${SEP}${D}{5}`,
     `1${SEP}800${SEP}${D}{2,3}${SEP}${D}{3,4}`,
   ].join('|')})(?![\\p{L}\\p{M}\\p{Nd}])`,
   'gu',

@@ -232,6 +232,9 @@ describe('what the corpus must not carry', () => {
       ['ای میل ( csm-upsc [at] nic [dot] in ) یا', 'ای میل ( <email> ) یا'],
       ['अभिप्राय jsseeds-agri [at]gov[dot]in या', 'अभिप्राय <email> या'],
       ['write to a@b.gov.in. Next sentence.', 'write to <email>. Next sentence.'],
+      // Found by audit.py in the packaged month: a mobile split 5-5, and one in Bengali digits.
+      ['ਸੰਪਰਕ 74283-21144 ਤੇ', 'ਸੰਪਰਕ <phone> ਤੇ'],
+      ['হোয়াটসঅ্যাপ নম্বর ৭২১৭৭৩৫৩৭২ চালু', 'হোয়াটসঅ্যাপ নম্বর <phone> চালু'],
     ]
     for (const [text, want] of cases) expect(parseRelease('1', withBody(`<p>${text}</p>`), 'en').body).toBe(want)
   })
