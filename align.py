@@ -149,7 +149,9 @@ class Cache:
     def __init__(self, path, model: str):
         import sqlite3
 
-        self.db = sqlite3.connect(str(path))
+        # laser.py and align.py can write at once (one fills LASER vectors while the other aligns);
+        # SQLite lets one writer in at a time, and its default 5 s wait can raise "database is locked".
+        self.db = sqlite3.connect(str(path), timeout=60)
         # A write-ahead log and no sync per commit: with the default journal every
         # batch waited on the disk, and on spinning disks the run stalled at 3%
         # GPU. The cache can always be rebuilt, so a crash costs only its last batch.
