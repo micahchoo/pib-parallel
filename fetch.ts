@@ -81,8 +81,10 @@ const POST = /class="(?:twitter-tweet|instagram-media)|(?:twitter|x)\.com\/\w+\/
 // July 2019) and may have a space round [at] and [dot] ("csm-upsc [at] nic
 // [dot] in") or after a dot, but only before a lower-case word ("trai. gov.in"),
 // so a following sentence ("...gov.in. Next", "...GOV.IN. THE") is never taken.
+// A Manipuri page writes the digits of an address in Bengali script too
+// ("advfea২@trai.gov.in"), so a digit is any script's.
 const EMAIL =
-  /[\w+-]+(?:(?:\.|\s?\[dot\]\s?)[\w+-]+)*\.?\s?(?:@|\[at\])\s?[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+|\.\s[a-z0-9-]+|\s?\[dot\]\s?[A-Za-z0-9-]+)+/g
+  /[\w\p{Nd}+-]+(?:(?:\.|\s?\[dot\]\s?)[\w\p{Nd}+-]+)*\.?\s?(?:@|\[at\])\s?[A-Za-z0-9\p{Nd}-]+(?:\.[A-Za-z0-9\p{Nd}-]+|\.\s[a-z0-9-]+|\s?\[dot\]\s?[A-Za-z0-9\p{Nd}-]+)+/gu
 
 // One digit, or a range of digits, in every script that writes its own: a
 // Bengali page wrote a mobile in Bengali digits (+৯১...), which ASCII missed.
@@ -92,6 +94,8 @@ const digit = (lo: number, hi = lo) =>
 const D = '\\p{Nd}'
 const SEP = '[\\s-]?'
 const PLUS91 = `\\+\\s?${digit(9)}${digit(1)}`
+// After +91 a group may be split by a dot or by two separators ("+ 91.40.3086 6419", "+91-11- 20907774").
+const PSEP = '[\\s.-]{0,2}'
 // A number after +91, which drops the trunk 0 ("+91-33-22361401", "+ 91-11-..."),
 // or kept in right-to-left order on an Urdu page ("-23000761 +91-40"); a
 // landline with its STD code; a mobile; a toll-free number, Indian or "1-800".
@@ -100,7 +104,7 @@ const PLUS91 = `\\+\\s?${digit(9)}${digit(1)}`
 // the number ("+91-11-23210481ರಲ್ಲಿ", August 2023).
 const PHONE = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{Nd}])(?:${[
-    `${PLUS91}${SEP}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
+    `${PLUS91}${PSEP}${D}{2,4}${PSEP}${D}{3,4}${PSEP}${D}{3,4}`,
     `-?${D}{6,8}\\s?${PLUS91}${SEP}${D}{2,4}`,
     `(?:${PLUS91}${SEP})?${digit(0)}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
     `(?:${PLUS91}${SEP})?${digit(6, 9)}${D}{4}${SEP}${D}{5}`,

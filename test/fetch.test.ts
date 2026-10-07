@@ -235,6 +235,14 @@ describe('what the corpus must not carry', () => {
       // Found by audit.py in the packaged month: a mobile split 5-5, and one in Bengali digits.
       ['ਸੰਪਰਕ 74283-21144 ਤੇ', 'ਸੰਪਰਕ <phone> ਤੇ'],
       ['হোয়াটসঅ্যাপ নম্বর ৭২১৭৭৩৫৩৭২ চালু', 'হোয়াটসঅ্যাপ নম্বর <phone> চালু'],
+      // regional/mni, blocked by audit.py: digits of another script inside an address, dots or two
+      // separators between a number's groups. The spaced address loses its [at] part, which is the
+      // part that makes it one.
+      ['ইমেল: advfea২@trai.gov.in সেক্রেতরী', 'ইমেল: <email> সেক্রেতরী'],
+      ['ক্বেরীসিংগীদমক technicalquery.covid১৯[at]gov[dot]in দা', 'ক্বেরীসিংগীদমক <email> দা'],
+      ['ক্বেরীশিংগীদমক্তা technicalquery.covid ১৯ [at]gov[dot]in দা', 'ক্বেরীশিংগীদমক্তা technicalquery.covid <email> দা'],
+      ['Phone: + 91.40.3086 6419', 'Phone: <phone>'],
+      ['may be contacted at Tel. No. +91-11- 20907774.', 'may be contacted at Tel. No. <phone>.'],
       // May 2021, blocked by audit.py: a mixed-case domain, and +91 in Bengali digits on a Manipuri page.
       ['কম্পনিশী contact@INDRAwater.com या ईमेलवर', 'কম্পনিশী <email> या ईमेलवर'],
       ['দা. রাজেন্দ্র বদৱে, +৯১৯৬১৯১৯৭৬৩৯, নেস', 'দা. রাজেন্দ্র বদৱে, <phone>, নেস'],
