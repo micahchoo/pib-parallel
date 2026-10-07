@@ -133,6 +133,9 @@ MODEL = "sentence-transformers/LaBSE"
 # title pairs to let through as many wrong titles as LaBSE's 0.70 does in Bengali
 # (25%). Manipuri at 0.80 kept 64% of its gold titles; LaBSE at 0.70 kept 12%.
 # LASER needs Python 3.10, so laser.py fills the cache and this script only reads it.
+# Only where LaBSE cannot read the language: on the same gold titles LaBSE beat
+# LASER3 for Nepali (right title first 97.9% against 94.5%) and Assamese (93.0%
+# against 91.5%), and kept more correct pairs at a like rate of wrong ones.
 LASER = {"mni": ("mni_Beng", 0.80)}
 LASER_ENGLISH = "LASER2:eng_Latn"
 
