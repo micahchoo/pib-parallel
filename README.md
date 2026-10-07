@@ -33,7 +33,12 @@ uv run align.py data/2025-11/*/pairs.jsonl > data/2025-11/sentences.jsonl
 
 Each release is cut into sentences, at the marks of every script PIB writes, but not after a title ("Dr.", "डॉ.", "திரு.") or an initial written as a letter name ("एल.", "ಎಲ್."). LaBSE embeds every sentence, and dynamic programming matches them in order, one to one, one to two or two to one. Pairs above a similarity of 0.70 are kept. Each pair records its similarity, whether its numbers agree (lakh, crore, million and billion read as values), and its two PRIDs. A pair of documents found from both sides, Delhi's English with its Marathi and Mumbai's Marathi with its English, is aligned once.
 
-LaBSE does not know Manipuri, Mizo, Khasi or Tenyidei, and knows Konkani only through Marathi. Their pairs are marked `confidence: low`.
+LaBSE does not know Manipuri, Mizo, Khasi or Tenyidei, and knows Konkani only through Marathi. Their pairs are marked `confidence: low`. Manipuri is aligned with LASER instead (English through LASER2, Manipuri through its LASER3 encoder), cut at 0.80: on PIB's own title pairs, LASER3 found the right English title for 77% of Manipuri ones against LaBSE's 55%, and in November 2025 it gave 5,596 pairs where LaBSE gave 763. LASER needs Python 3.10, so `laser.py` fills the vector cache first and `align.py` reads it:
+
+```sh
+uv run -p 3.10 laser.py data/2025-11/*/pairs.jsonl
+uv run align.py data/2025-11/*/pairs.jsonl > data/2025-11/sentences.jsonl
+```
 
 Sentence vectors are cached in `~/.cache/pib-parallel/embeddings.sqlite` (`PIB_EMBEDDINGS`), so a rerun only embeds new sentences. Keep the cache on a fast disk.
 
@@ -60,6 +65,8 @@ It writes `data/2025-11/release/sentences.parquet`, one row per distinct sentenc
 ```sh
 ./publish.sh 2019-07     # rebuild, align, copies, package, audit, card.py, upload.py
 ```
+
+`regional.sh` fetches every month of the offices that publish little in their own language (Nepali from Gangtok, Khasi from Shillong, Konkani from Mumbai around the November film festival), skipping the months already published, for `./publish.sh regional/ne` and the like: one split per language in the dataset's `regional` config.
 
 `card.py` writes the dataset card from `card/template.md` and every packaged month; `upload.py` sends one month and the card in one commit. Both name this project's dataset; change `REPO` in `upload.py` to publish your own. The crawl passes, with their office and language codes, are in `passes.tsv`.
 

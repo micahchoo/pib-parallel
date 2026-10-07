@@ -35,15 +35,22 @@ def label(month: str) -> str:
     return f"{calendar.month_name[int(m)]} {year}"
 
 
-def configs(months: list[str]) -> str:
+def configs(months: list[str], regional: list[str] = ()) -> str:
+    """The card's configs: a split per month, and a `regional` pair of configs with a split per language.
+    Split names are quoted: YAML reads 2025_11 as a number, and no, yes, on and off as true or false."""
     out = []
-    for config, default in (("sentences", True), ("documents", False)):
+    files = [("sentences", True, [(split_name(m), f"sentences/{m}.parquet") for m in months]),
+             ("documents", False, [(split_name(m), f"documents/{m}.parquet") for m in months])]
+    if regional:
+        files += [("regional", False, [(l, f"regional/sentences/{l}.parquet") for l in regional]),
+                  ("regional_documents", False, [(l, f"regional/documents/{l}.parquet") for l in regional])]
+    for config, default, splits in files:
         out.append(f"- config_name: {config}")
         if default:
             out.append("  default: true")
         out.append("  data_files:")
-        for m in months:
-            out += [f"  - split: {split_name(m)}", f"    path: {config}/{m}.parquet"]
+        for split, path in splits:
+            out += [f'  - split: "{split}"', f"    path: {path}"]
     return "\n".join(out)
 
 
@@ -104,6 +111,29 @@ def language_table(stats: dict) -> str:
     return "\n".join(lines)
 
 
+def regional_section(data: pathlib.Path, langs: list[str]) -> str:
+    """The regional config: every month of the offices that publish little, a split per language."""
+    if not langs:
+        return ""
+    import pyarrow.parquet as pq
+
+    rows = ["| Language | Split | Sentence pairs | Similarity ≥ 0.85 | Document pairs | Months | Google copies |",
+            "| --- | --- | --- | --- | --- | --- | --- |"]
+    for lang in langs:
+        d = data / "regional" / lang
+        st = month_stats(d)
+        dates = sorted(r["date"][:7] for r in pq.read_table(d / "release" / "documents.parquet", columns=["date"]).to_pylist() if r["date"])
+        span = f"{label(dates[0])} to {label(dates[-1])} ({len(set(dates))})" if dates else ""
+        c = [json.loads(l)["google_copy"] for l in open(d / "copies.jsonl") if l.strip()] if (d / "copies.jsonl").exists() else []
+        copies = rate(sum(c), len(c)) if c else "not measured"
+        rows.append(f"| {NAMES.get(lang, lang)} | `{lang}` | {st['pairs']:,} | {st['high']:,} | {st['docs']:,} | {span} | {copies} |")
+    return ("## Regional\n\nThe offices that publish little in their own language give only tens of releases a month, "
+            "so for them every month PIB has is pooled into one split per language, in the `regional` and "
+            "`regional_documents` configs. Months already published as month splits are left out, so no pair "
+            "is in both.\n\n```python\nnepali = load_dataset(\"micahchoo/pib-parallel\", \"regional\", split=\"ne\")\n```\n\n"
+            + "\n".join(rows) + "\n\n")
+
+
 def size_category(n: int) -> str:
     for limit, name in ((10**5, "10K<n<100K"), (10**6, "100K<n<1M"), (10**7, "1M<n<10M")):
         if n < limit:
@@ -113,6 +143,7 @@ def size_category(n: int) -> str:
 
 def card(template: str, data: pathlib.Path) -> str:
     months = sorted(p.parent.parent.name for p in data.glob("*/release/sentences.parquet"))
+    regional = sorted(p.parent.parent.name for p in data.glob("regional/*/release/sentences.parquet"))
     stats = {m: month_stats(data / m) for m in months}
     copies = {p.parent.name: [json.loads(l) for l in open(p) if l.strip()] for p in sorted(data.glob("*/copies.jsonl"))}
     total = sum(s["pairs"] for s in stats.values())
@@ -122,7 +153,8 @@ def card(template: str, data: pathlib.Path) -> str:
     per_month = "\n\n".join(f"### {label(m)}\n\n" + language_table(stats[m]) for m in reversed(months))
     known = sum(s["known"] for s in stats.values())
     fills = {
-        "{{configs}}": configs(months),
+        "{{configs}}": configs(months, regional),
+        "{{regional}}": regional_section(data, regional),
         "{{languages_yaml}}": "\n".join(f"- {c}" for c in ["en"] + langs),
         "{{size}}": size_category(total),
         "{{months}}": "\n".join(month_rows),

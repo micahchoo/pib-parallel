@@ -33,3 +33,13 @@ def test_the_copy_table_has_a_column_per_month_and_skips_a_passs_stray_language(
     assert "| Kolkata, Bengali | 0% | 0% (of 88) |" in table
     assert "| Delhi's Hindi translations |  | 29% |" in table
     assert not any("Chandigarh" in line for line in table)
+
+
+def test_the_regional_config_has_a_split_per_language_and_every_split_name_is_quoted():
+    text = cd.configs(["2025-11"], ["gom", "ne", "kha"])
+    parsed = yaml.safe_load(text)
+    names = [c["config_name"] for c in parsed]
+    assert names == ["sentences", "documents", "regional", "regional_documents"]
+    regional = parsed[2]["data_files"]
+    assert [(f["split"], f["path"]) for f in regional] == [("gom", "regional/sentences/gom.parquet"), ("ne", "regional/sentences/ne.parquet"), ("kha", "regional/sentences/kha.parquet")]
+    assert '- split: "nov2025"' in text  # quoted: YAML 1.1 reads no, yes, on and off as true or false

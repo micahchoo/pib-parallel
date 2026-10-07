@@ -127,6 +127,18 @@ def numbers_agree(a: str, b: str) -> bool | None:
 
 
 MODEL = "sentence-transformers/LaBSE"
+
+# Languages LaBSE cannot read, aligned with LASER instead: English through LASER2,
+# the language through its own LASER3 encoder, each with a cut set on PIB's gold
+# title pairs to let through as many wrong titles as LaBSE's 0.70 does in Bengali
+# (25%). Manipuri at 0.80 kept 64% of its gold titles; LaBSE at 0.70 kept 12%.
+# LASER needs Python 3.10, so laser.py fills the cache and this script only reads it.
+LASER = {"mni": ("mni_Beng", 0.80)}
+LASER_ENGLISH = "LASER2:eng_Latn"
+
+
+def laser_key(lang: str) -> str:
+    return f"LASER3:{LASER[lang][0]}"
 BATCH = 32  # release groups embedded in one call
 
 
@@ -187,22 +199,30 @@ def embedder(encode, cache: Cache | None = None):
     return vectors
 
 
+def side(texts: list[str]) -> list[str]:
+    """Every text align() reads on one side: each sentence, and each pair of neighbours."""
+    return texts + [a + " " + b for a, b in zip(texts, texts[1:])]
+
+
 def needed(src: list[str], tgt: list[str]) -> list[str]:
     """Every text align() reads: each sentence, and each pair of neighbours for 1-2 and 2-1 matches."""
-    return src + [a + " " + b for a, b in zip(src, src[1:])] + tgt + [a + " " + b for a, b in zip(tgt, tgt[1:])]
+    return side(src) + side(tgt)
 
 
-def align(vec: dict, src: list[str], tgt: list[str]) -> list[tuple[str, str, float]]:
+def align(vec: dict, src: list[str], tgt: list[str], vec_tgt: dict | None = None) -> list[tuple[str, str, float]]:
+    """Sentence pairs in order; `vec_tgt` holds the target side's vectors when its encoder differs."""
     import numpy as np
 
     if not src or not tgt:
         return []
+    vt = vec if vec_tgt is None else vec_tgt
     # Every similarity the search can ask for, three matrix products up front:
     # looked up cell by cell it was the slowest part of a run once the vectors
     # came from the GPU (6% busy).
     stack = lambda texts: np.stack([vec[t] for t in texts]) if texts else np.zeros((0, len(vec[src[0]])))
-    S1, T1 = stack(src), stack(tgt)
-    S2, T2 = stack([a + " " + b for a, b in zip(src, src[1:])]), stack([a + " " + b for a, b in zip(tgt, tgt[1:])])
+    stack_t = lambda texts: np.stack([vt[t] for t in texts]) if texts else np.zeros((0, len(vt[tgt[0]])))
+    S1, T1 = stack(src), stack_t(tgt)
+    S2, T2 = stack([a + " " + b for a, b in zip(src, src[1:])]), stack_t([a + " " + b for a, b in zip(tgt, tgt[1:])])
     one, two_one, one_two = (S1 @ T1.T).tolist(), (S2 @ T1.T).tolist(), (S1 @ T2.T).tolist()
     n, m = len(src), len(tgt)
     best = np.full((n + 1, m + 1), -1e9)
@@ -241,10 +261,12 @@ def groups_in(lines):
     return (json.loads(line) for line in lines if line.strip())
 
 
-def pairs_of(groups: list[tuple[str, dict]], vectors, seen: set | None = None):
+def pairs_of(groups: list[tuple[str, dict]], vectors, seen: set | None = None, laser: dict | None = None):
     """Sentence pairs for a batch of (office, release group), with the whole batch embedded in one call.
     A document pair already in `seen` is skipped: Delhi's English with its Marathi and Mumbai's
-    Marathi with its English are the same two documents."""
+    Marathi with its English are the same two documents. A language in LASER is aligned with
+    `laser[lang]` = (English vectors, its own vectors, cut), and is an error without it."""
+    laser = laser or {}
     seen = set() if seen is None else seen
     jobs = []
     for office, group in groups:
@@ -262,10 +284,17 @@ def pairs_of(groups: list[tuple[str, dict]], vectors, seen: set | None = None):
                     continue
                 seen.add(pair)
             jobs.append((office, group, lang, pair, en, sentences(doc["title"] + "\n" + doc["body"])))
-    vec = vectors([t for *_, en, tgt in jobs for t in needed(en, tgt)])
+    for *_, lang, _, _, _ in jobs:
+        if lang in LASER and lang not in laser:
+            raise KeyError(f"{lang} is aligned with LASER: run laser.py on these files first")
+    vec = vectors([t for *_, lang, _, en, tgt in jobs if lang not in laser for t in needed(en, tgt)])
+    own = {lang: (en_v([t for *_, l, _, en, _ in jobs if l == lang for t in side(en)]),
+                  tx_v([t for *_, l, _, _, tgt in jobs if l == lang for t in side(tgt)]), cut)
+           for lang, (en_v, tx_v, cut) in laser.items()}
     for office, group, lang, (en_prid, text_prid), en, tgt in jobs:
-        for s, t, sim in align(vec, en, tgt):
-            if sim >= MIN_SIM:
+        v_en, v_tx, cut = own.get(lang, (vec, None, MIN_SIM))
+        for s, t, sim in align(v_en, en, tgt, v_tx):
+            if sim >= cut:
                 # Recorded, not yet a filter: the measuring stick decides that.
                 yield {"lang": lang, "en": s, "text": t, "sim": round(sim, 3), "numbers": numbers_agree(s, t),
                        "confidence": "low" if lang in UNSEEN else "normal",
@@ -293,11 +322,20 @@ if __name__ == "__main__":
     os.makedirs(os.path.dirname(path), exist_ok=True)
     cache = Cache(path, MODEL + ("@fp16" if gpu else ""))
     vectors = embedder(lambda texts: model.encode(texts, normalize_embeddings=True, batch_size=256 if gpu else 64).astype("float32"), cache)
+
+    def made_by_laser_py(key):
+        def encode(texts):
+            raise KeyError(f"{len(texts)} sentences have no {key} vector: run laser.py on these files first")
+        return encode
+
+    laser = {lang: (embedder(made_by_laser_py(LASER_ENGLISH), Cache(path, LASER_ENGLISH)),
+                    embedder(made_by_laser_py(laser_key(lang)), Cache(path, laser_key(lang))), cut)
+             for lang, (_, cut) in LASER.items()}
     batch: list[tuple[str, dict]] = []
     seen: set = set()
 
     def flush():
-        for row in pairs_of(batch, vectors, seen):
+        for row in pairs_of(batch, vectors, seen, laser):
             print(json.dumps(row, ensure_ascii=False), flush=False)
         sys.stdout.flush()
         batch.clear()

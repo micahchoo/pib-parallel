@@ -94,6 +94,14 @@ def documents(groups) -> list[dict]:
     return out
 
 
+def release_groups(root: pathlib.Path) -> list[tuple[str, dict]]:
+    """(office, release group) from every pairs.jsonl under root, at any depth: a month keeps its
+    offices one level down, a regional language its months and then its offices. Sorted by path,
+    the order align.py is handed the files in, so a document is credited as its sentences are."""
+    files = sorted(p for p in root.rglob("pairs.jsonl") if not {"bench", "release"} & set(p.parts))
+    return [(p.parent.name, g) for p in files for g in jsonl(p)]
+
+
 def jsonl(path):
     return [json.loads(line) for line in open(path) if line.strip()]
 
@@ -108,9 +116,7 @@ if __name__ == "__main__":
     copies_file = month / "copies.jsonl"
     copies = {(c["lang"], c["en"], c["text"]): c["google_copy"] for c in jsonl(copies_file)} if copies_file.exists() else {}
     sentences = fold(jsonl(month / "sentences.jsonl"), copies)
-    # The same order align.py read the passes in, so a document is credited to the same office as its sentences.
-    groups = [(p.parent.name, g) for p in sorted(month.glob("*/pairs.jsonl")) if p.parent.name != "bench" for g in jsonl(p)]
-    docs = documents(groups)
+    docs = documents(release_groups(month))
     for name, rows in (("sentences", sentences), ("documents", docs)):
         pq.write_table(pa.Table.from_pylist(rows), out / f"{name}.parquet", compression="zstd")
         print(f"{name}: {len(rows)} rows -> {out / name}.parquet")

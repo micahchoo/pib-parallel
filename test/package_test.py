@@ -59,3 +59,14 @@ def test_a_pair_is_kept_only_when_each_side_is_in_its_own_script():
     khasi = pair("The Prime Minister spoke.", "U Prime Minister u la kren.", lang="kha")
     rows = pk.fold([keep, link, english, initials, quoted, khasi], {})
     assert [r["text"] for r in rows] == ["राष्ट्रपति ने इसका उद्घाटन किया।", "U Prime Minister u la kren."]
+
+
+def test_a_language_pools_its_months_found_at_any_depth(tmp_path):
+    # data/regional/ne/<month>/<office>/pairs.jsonl: the months of one language are one split.
+    import json
+    for month, prid in (("2023-05", "10"), ("2024-02", "11")):
+        d = tmp_path / month / "gangtok-ne"; d.mkdir(parents=True)
+        g = {"prid": prid, "date": "", "ministry": "", "byLang": {"en": {"prid": prid, "title": "T", "body": "B"}, "ne": {"prid": prid + "1", "title": "शी", "body": "ब"}}}
+        (d / "pairs.jsonl").write_text(json.dumps(g) + "\n")
+    groups = pk.release_groups(tmp_path)
+    assert [(office, g["prid"]) for office, g in groups] == [("gangtok-ne", "10"), ("gangtok-ne", "11")]

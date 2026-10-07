@@ -165,3 +165,27 @@ def test_a_document_pair_is_aligned_once_from_whichever_side_it_came():
 def test_blank_lines_in_a_pairs_file_are_skipped():
     # An office with no releases that month wrote a pairs.jsonl holding one empty line.
     assert list(pa.groups_in(["", '{"prid": "1"}', "\n"])) == [{"prid": "1"}]
+
+
+def test_a_language_labse_cannot_read_is_aligned_with_its_own_encoders_and_cut():
+    # Manipuri: English through LASER2, Manipuri through LASER3, kept from 0.80 (calibrated on
+    # PIB's gold titles), not LaBSE's 0.70.
+    group = {"prid": "1", "date": "D", "byLang": {
+        "en": {"prid": "1", "title": "", "body": "One. Two."}, "mni": {"prid": "2", "title": "", "body": "অমা। অনি।"}}}
+    labse, _ = fake_vectors({})                                   # LaBSE reads none of it
+    english, _ = fake_vectors({"One.": "A", "Two.": "B"})
+    manipuri = lambda texts: np.array([[1, 0, 0, 0] if t == "অমা।" else [0.66, 0.75, 0, 0] if t == "অনি।" else [0, 0, 0, 0] for t in texts], dtype=np.float32)
+    laser = {"mni": (pa.embedder(english), pa.embedder(manipuri), 0.80)}
+    rows = list(pa.pairs_of([("imphal-mni", group)], pa.embedder(labse), laser=laser))
+    assert [(r["en"], r["text"], r["sim"]) for r in rows] == [("One.", "অমা।", 1.0)]  # "অনি।" scores 0.75 with "Two.": below 0.80
+
+
+def test_a_language_set_for_laser_without_its_vectors_is_an_error_not_a_quiet_fallback():
+    group = {"prid": "1", "date": "D", "byLang": {"en": {"prid": "1", "title": "", "body": "One."}, "mni": {"prid": "2", "title": "", "body": "অমা।"}}}
+    labse, _ = fake_vectors({})
+    try:
+        list(pa.pairs_of([("imphal-mni", group)], pa.embedder(labse)))
+    except KeyError as e:
+        assert "laser.py" in str(e)
+    else:
+        raise AssertionError("Manipuri was aligned with LaBSE")

@@ -65,7 +65,7 @@ PIB publishes nothing in Bodo, Dogri, Kashmiri, Maithili, Sanskrit, Santali or S
 
 {{per_month}}
 
-## How it was made
+{{regional}}## How it was made
 
 1. **Fetched** from PIB's own pages: every release each office listed for the month, and the translations each release page links. PIB states which releases are translations of which, so no document was matched by guesswork.
 2. **Cleaned**: embedded tweets and posts removed (third-party material, and on translated pages most were left in English; 7,908 in November 2025); email addresses and phone numbers replaced by `<email>` and `<phone>` on every side; error pages, withdrawn releases and repeated festival boilerplate dropped.
