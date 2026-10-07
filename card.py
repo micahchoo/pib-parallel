@@ -111,22 +111,28 @@ def language_table(stats: dict) -> str:
     return "\n".join(lines)
 
 
+def months_with_releases(lang_dir: pathlib.Path) -> list[str]:
+    """The months a regional language has releases in, from its crawl folders: IFFI pages, all of
+    Konkani's, carry no dateline, so the releases' dates cannot say."""
+    return sorted({p.parent.parent.name for p in lang_dir.glob("*/*/pairs.jsonl") if p.read_text().strip()})
+
+
 def regional_section(data: pathlib.Path, langs: list[str]) -> str:
     """The regional config: every month of the offices that publish little, a split per language."""
     if not langs:
         return ""
-    import pyarrow.parquet as pq
-
     rows = ["| Language | Split | Sentence pairs | Similarity ≥ 0.85 | Document pairs | Months | Google copies |",
             "| --- | --- | --- | --- | --- | --- | --- |"]
     for lang in langs:
         d = data / "regional" / lang
         st = month_stats(d)
-        dates = sorted(r["date"][:7] for r in pq.read_table(d / "release" / "documents.parquet", columns=["date"]).to_pylist() if r["date"])
-        span = f"{label(dates[0])} to {label(dates[-1])} ({len(set(dates))})" if dates else ""
+        months = months_with_releases(d)
+        span = (f"{label(months[0])} to {label(months[-1])} ({len(months)})" if len(months) > 2
+                else ", ".join(label(m) for m in months))
         c = [json.loads(l)["google_copy"] for l in open(d / "copies.jsonl") if l.strip()] if (d / "copies.jsonl").exists() else []
         copies = rate(sum(c), len(c)) if c else "not measured"
-        rows.append(f"| {NAMES.get(lang, lang)} | `{lang}` | {st['pairs']:,} | {st['high']:,} | {st['docs']:,} | {span} | {copies} |")
+        name = NAMES.get(lang, lang) + (" (low confidence)" if st["langs"].get(lang, [0, 0, 0, False])[3] else "")
+        rows.append(f"| {name} | `{lang}` | {st['pairs']:,} | {st['high']:,} | {st['docs']:,} | {span} | {copies} |")
     return ("## Regional\n\nThe offices that publish little in their own language give only tens of releases a month, "
             "so for them every month PIB has is pooled into one split per language, in the `regional` and "
             "`regional_documents` configs. Months already published as month splits are left out, so no pair "

@@ -46,7 +46,7 @@ A release is at `https://www.pib.gov.in/PressReleasePage.aspx?PRID=<prid>`.
 | --- | --- |
 | `lang` | the translation's language (ISO 639) |
 | `en`, `text` | the English sentence and its translation |
-| `similarity` | LaBSE cosine similarity of the two, 0.70 or more |
+| `similarity` | cosine similarity of the two: LaBSE's, 0.70 or more; for Manipuri, LASER3's, 0.80 or more, on a higher scale that is not comparable with LaBSE's |
 | `numbers_agree` | whether both sides hold the same numbers (lakh, crore, million and billion read as values); null when neither has any |
 | `confidence` | `low` for Konkani, Khasi and Manipuri, which LaBSE does not know or knows only through a related language |
 | `google_copy` | for a sample of pairs only: whether PIB's text is within chrF 90 of Google Translate's for the same English; null where not checked |

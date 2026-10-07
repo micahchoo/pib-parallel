@@ -43,3 +43,11 @@ def test_the_regional_config_has_a_split_per_language_and_every_split_name_is_qu
     regional = parsed[2]["data_files"]
     assert [(f["split"], f["path"]) for f in regional] == [("gom", "regional/sentences/gom.parquet"), ("ne", "regional/sentences/ne.parquet"), ("kha", "regional/sentences/kha.parquet")]
     assert '- split: "nov2025"' in text  # quoted: YAML 1.1 reads no, yes, on and off as true or false
+
+
+def test_a_regional_languages_months_come_from_its_crawl_folders_not_from_dates(tmp_path):
+    # Konkani's releases are all IFFI pages, which carry no dateline: dates gave no months at all.
+    for month, body in (("2023-11", '{"prid": "1"}\n'), ("2024-11", '{"prid": "2"}\n'), ("2024-05", "")):
+        d = tmp_path / month / "mumbai-gom"; d.mkdir(parents=True)
+        (d / "pairs.jsonl").write_text(body)
+    assert cd.months_with_releases(tmp_path) == ["2023-11", "2024-11"]
