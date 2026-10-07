@@ -235,6 +235,10 @@ describe('what the corpus must not carry', () => {
       // Found by audit.py in the packaged month: a mobile split 5-5, and one in Bengali digits.
       ['ਸੰਪਰਕ 74283-21144 ਤੇ', 'ਸੰਪਰਕ <phone> ਤੇ'],
       ['হোয়াটসঅ্যাপ নম্বর ৭২১৭৭৩৫৩৭২ চালু', 'হোয়াটসঅ্যাপ নম্বর <phone> চালু'],
+      // May 2021, blocked by audit.py: a mixed-case domain, and +91 in Bengali digits on a Manipuri page.
+      ['কম্পনিশী contact@INDRAwater.com या ईमेलवर', 'কম্পনিশী <email> या ईमेलवर'],
+      ['দা. রাজেন্দ্র বদৱে, +৯১৯৬১৯১৯৭৬৩৯, নেস', 'দা. রাজেন্দ্র বদৱে, <phone>, নেস'],
+      ['হেল্পলাইন ১৮০০-১৮০-১৫০৩ নম্বরে', 'হেল্পলাইন <phone> নম্বরে'],
       // August 2023, blocked by audit.py: Kannada and Telugu join a case ending to the number.
       ['ದೂರವಾಣಿ ಸಂಖ್ಯೆ +91-11-23210481ರಲ್ಲಿ ಸಂಪರ್ಕಿಸಿ', 'ದೂರವಾಣಿ ಸಂಖ್ಯೆ <phone>ರಲ್ಲಿ ಸಂಪರ್ಕಿಸಿ'],
       ['టెలిఫోన్ నంబర్ +91-11-23237922లో సంప్రదించవచ్చు', 'టెలిఫోన్ నంబర్ <phone>లో సంప్రదించవచ్చు'],

@@ -76,21 +76,22 @@ export type Release = {
 // pages), by its link; a plain quotation stays.
 const QUOTES = /<blockquote\b[^>]*>[\s\S]*?<\/blockquote>/gi
 const POST = /class="(?:twitter-tweet|instagram-media)|(?:twitter|x)\.com\/\w+\/status\/|instagram\.com\/(?:p|reel)\//i
-// The local part may end in a stray dot and take [dot]; the domain is lower
-// case, so a following sentence ("...gov.in. Next") is not taken with it, and
-// may have a space after a dot or round [at] and [dot] ("trai. gov.in",
-// "csm-upsc [at] nic [dot] in"): all forms found in the November 2025 data.
-// An address typed in capitals ("BSNLGOGREENATD@GMAIL.COM", July 2019) has an
-// upper-case domain with no space after its dots.
-const EMAIL = /[\w+-]+(?:(?:\.|\s?\[dot\]\s?)[\w+-]+)*\.?\s?(?:@|\[at\])\s?(?:[a-z0-9-]+(?:(?:\.\s?|\s?\[dot\]\s?)[a-z0-9-]+)+|[A-Z0-9-]+(?:\.[A-Z0-9-]+)+)/g
-const ZERO = '[0०০੦૦୦௦౦೦൦۰٠]'
-// A mobile's first digit, 6 to 9, in every script that writes its own digits:
-// a Bengali page wrote a WhatsApp number in Bengali digits, which [6-9] missed.
-const MOBILE_FIRST = `[6-9${[0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6, 0x0d66, 0x0660, 0x06f0]
-  .map((zero) => `${String.fromCodePoint(zero + 6)}-${String.fromCodePoint(zero + 9)}`)
-  .join('')}]`
+// The local part may end in a stray dot and take [dot]; the domain may be in
+// any case ("contact@INDRAwater.com", May 2021; "BSNLGOGREENATD@GMAIL.COM",
+// July 2019) and may have a space round [at] and [dot] ("csm-upsc [at] nic
+// [dot] in") or after a dot, but only before a lower-case word ("trai. gov.in"),
+// so a following sentence ("...gov.in. Next", "...GOV.IN. THE") is never taken.
+const EMAIL =
+  /[\w+-]+(?:(?:\.|\s?\[dot\]\s?)[\w+-]+)*\.?\s?(?:@|\[at\])\s?[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+|\.\s[a-z0-9-]+|\s?\[dot\]\s?[A-Za-z0-9-]+)+/g
+
+// One digit, or a range of digits, in every script that writes its own: a
+// Bengali page wrote a mobile in Bengali digits (+৯১...), which ASCII missed.
+const ZEROS = [0x30, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6, 0x0d66, 0x0660, 0x06f0]
+const digit = (lo: number, hi = lo) =>
+  `[${ZEROS.map((z) => String.fromCodePoint(z + lo) + (hi > lo ? `-${String.fromCodePoint(z + hi)}` : '')).join('')}]`
 const D = '\\p{Nd}'
 const SEP = '[\\s-]?'
+const PLUS91 = `\\+\\s?${digit(9)}${digit(1)}`
 // A number after +91, which drops the trunk 0 ("+91-33-22361401", "+ 91-11-..."),
 // or kept in right-to-left order on an Urdu page ("-23000761 +91-40"); a
 // landline with its STD code; a mobile; a toll-free number, Indian or "1-800".
@@ -99,11 +100,11 @@ const SEP = '[\\s-]?'
 // the number ("+91-11-23210481ರಲ್ಲಿ", August 2023).
 const PHONE = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{Nd}])(?:${[
-    `\\+\\s?91${SEP}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
-    `-?${D}{6,8}\\s?\\+\\s?91${SEP}${D}{2,4}`,
-    `(?:\\+\\s?91${SEP})?${ZERO}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
-    `(?:\\+\\s?91${SEP})?${MOBILE_FIRST}${D}{4}${SEP}${D}{5}`,
-    `1${SEP}800${SEP}${D}{2,3}${SEP}${D}{3,4}`,
+    `${PLUS91}${SEP}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
+    `-?${D}{6,8}\\s?${PLUS91}${SEP}${D}{2,4}`,
+    `(?:${PLUS91}${SEP})?${digit(0)}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
+    `(?:${PLUS91}${SEP})?${digit(6, 9)}${D}{4}${SEP}${D}{5}`,
+    `${digit(1)}${SEP}${digit(8)}${digit(0)}${digit(0)}${SEP}${D}{2,3}${SEP}${D}{3,4}`,
   ].join('|')})(?!\\p{Nd})`,
   'gu',
 )
