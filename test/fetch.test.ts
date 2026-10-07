@@ -243,6 +243,10 @@ describe('what the corpus must not carry', () => {
       ['ক্বেরীশিংগীদমক্তা technicalquery.covid ১৯ [at]gov[dot]in দা', 'ক্বেরীশিংগীদমক্তা technicalquery.covid <email> দা'],
       ['Phone: + 91.40.3086 6419', 'Phone: <phone>'],
       ['may be contacted at Tel. No. +91-11- 20907774.', 'may be contacted at Tel. No. <phone>.'],
+      // regional/mni, second audit: three separators, and the area code in brackets.
+      ['তেলিফোন :+ ৯১ - ১১ - ২৬৮৪৮৯১৭ ( দ', 'তেলিফোন :<phone> ( দ'],
+      ['Phone + 91 (22) 6665 8282 here', 'Phone <phone> here'],
+      ['ফোন +৯১(২২)৬৬৬৫৮২৮২ এ', 'ফোন <phone> এ'],
       // May 2021, blocked by audit.py: a mixed-case domain, and +91 in Bengali digits on a Manipuri page.
       ['কম্পনিশী contact@INDRAwater.com या ईमेलवर', 'কম্পনিশী <email> या ईमेलवर'],
       ['দা. রাজেন্দ্র বদৱে, +৯১৯৬১৯১৯৭৬৩৯, নেস', 'দা. রাজেন্দ্র বদৱে, <phone>, নেস'],

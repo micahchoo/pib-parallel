@@ -94,8 +94,9 @@ const digit = (lo: number, hi = lo) =>
 const D = '\\p{Nd}'
 const SEP = '[\\s-]?'
 const PLUS91 = `\\+\\s?${digit(9)}${digit(1)}`
-// After +91 a group may be split by a dot or by two separators ("+ 91.40.3086 6419", "+91-11- 20907774").
-const PSEP = '[\\s.-]{0,2}'
+// After +91 a group may be split by a dot or by up to three separators ("+ 91.40.3086 6419",
+// "+ ৯১ - ১১ - ২৬৮৪৮৯১৭"), and the area code may stand in brackets ("+ 91 (22) 6665 8282").
+const PSEP = '[\\s.-]{0,3}'
 // A number after +91, which drops the trunk 0 ("+91-33-22361401", "+ 91-11-..."),
 // or kept in right-to-left order on an Urdu page ("-23000761 +91-40"); a
 // landline with its STD code; a mobile; a toll-free number, Indian or "1-800".
@@ -104,7 +105,7 @@ const PSEP = '[\\s.-]{0,2}'
 // the number ("+91-11-23210481ರಲ್ಲಿ", August 2023).
 const PHONE = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{Nd}])(?:${[
-    `${PLUS91}${PSEP}${D}{2,4}${PSEP}${D}{3,4}${PSEP}${D}{3,4}`,
+    `${PLUS91}${PSEP}\\(?${D}{2,4}\\)?${PSEP}${D}{3,4}${PSEP}${D}{3,4}`,
     `-?${D}{6,8}\\s?${PLUS91}${SEP}${D}{2,4}`,
     `(?:${PLUS91}${SEP})?${digit(0)}${D}{2,4}${SEP}${D}{3,4}${SEP}${D}{3,4}`,
     `(?:${PLUS91}${SEP})?${digit(6, 9)}${D}{4}${SEP}${D}{5}`,
