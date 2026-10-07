@@ -235,8 +235,13 @@ async function pause(ms: number) {
   return promise
 }
 
-/** One GET for the whole run, held PIB_DELAY apart from the last. */
-async function get(url: string): Promise<string> {
+/**
+ * One request for the whole run, held PIB_DELAY apart from the last, and
+ * retried with back-off on a timeout or a retryable status. GET and the month
+ * list's POST both go through it: on 2026-10-07 the POST, then unretried,
+ * timed out once and stopped a publish.
+ */
+async function request(url: string, init: RequestInit = {}): Promise<string> {
   for (let attempt = 0; ; attempt++) {
     const gap = DELAY - (Date.now() - lastRequest)
     if (gap > 0) await pause(gap)
@@ -244,7 +249,11 @@ async function get(url: string): Promise<string> {
     requests++
     let res: Response
     try {
-      res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'en-US,en;q=0.9' }, signal: AbortSignal.timeout(TIMEOUT) })
+      res = await fetch(url, {
+        ...init,
+        headers: { 'User-Agent': UA, 'Accept-Language': 'en-US,en;q=0.9', ...(init.headers ?? {}) },
+        signal: AbortSignal.timeout(TIMEOUT),
+      })
     } catch (error) {
       if (attempt >= 5) throw error
       const backoff = Math.min(60_000, 2 ** attempt * 2000)
@@ -259,6 +268,8 @@ async function get(url: string): Promise<string> {
     await pause(backoff)
   }
 }
+
+const get = (url: string) => request(url)
 
 const MONTHS: Record<string, number> = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 }
 const SETTLE_DAYS = 7
@@ -320,12 +331,7 @@ async function monthPrerids(reg: number, lang: number, year: number, month: numb
   form.set('ctl00$ContentPlaceHolder1$ddlYear', String(year))
   form.set('__EVENTTARGET', 'ctl00$ContentPlaceHolder1$ddlYear')
   form.set('__EVENTARGUMENT', '')
-  await pause(Math.max(0, DELAY - (Date.now() - lastRequest)))
-  lastRequest = Date.now()
-  requests++
-  const res = await fetch(url, { method: 'POST', headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString(), signal: AbortSignal.timeout(TIMEOUT) })
-  if (!res.ok) throw new Error(`${res.status} ${url}`)
-  const html = await res.text()
+  const html = await request(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString() })
   console.error(`  ${(html.match(/Displaying\s+([\d,]+)\s+Press Releases[^<]*/)?.[0] ?? 'no list').trim()}`)
   return [...new Set([...html.matchAll(/PressReleaseDetail\.aspx\?PRID=(\d+)/g)].map((m) => m[1]))]
 }
@@ -376,9 +382,18 @@ if (import.meta.main) {
   const limit = bare[0] ? Number(bare[0]) : month ? Infinity : 20
 
   console.error(`PIB: reg=${reg} lang=${lang} delay=${DELAY}ms -> ${DIR}`)
-  const prids = month
-    ? (await monthPrerids(reg, lang, ...(month.split('-').map(Number) as [number, number]))).slice(0, limit)
-    : (await feed(lang, reg)).slice(0, limit).map((i) => i.prid)
+  // PIB_REUSE_LIST=1 takes the release list from this pass's last releases.jsonl
+  // instead of asking PIB again: a rebuild then sends no request at all. On
+  // 2026-10-07 PIB's month-list form timed out on every retry while its pages
+  // answered at once, and stopped a rebuild that needed nothing new.
+  const saved = `${DIR}/releases.jsonl`
+  const reuse = process.env.PIB_REUSE_LIST === '1' && existsSync(saved)
+  const prids = reuse
+    ? readFileSync(saved, 'utf8').split('\n').filter(Boolean).map((line) => (JSON.parse(line) as Release).prid).slice(0, limit)
+    : month
+      ? (await monthPrerids(reg, lang, ...(month.split('-').map(Number) as [number, number]))).slice(0, limit)
+      : (await feed(lang, reg)).slice(0, limit).map((i) => i.prid)
+  if (reuse) console.error(`  the release list of the last run, ${saved}`)
   console.error(`  ${prids.length} releases to fetch`)
 
   const rows: Release[] = []

@@ -17,7 +17,8 @@ for f in $files; do
   # A month's passes sit in it; a regional language's sit in its months.
   if [[ $target == regional/* ]]; then month=$(basename "$(dirname "$pass")"); else month=$target; fi
   IFS=$'\t' read -r _ reg lang cols < <(grep -P "^$name\t" passes.tsv)
-  PIB_DIR=$pass PIB_DELAY=500 bun fetch.ts --month "$month" --reg "$reg" --lang "$lang" --columns "$cols" < /dev/null > "$pass/rebuild.log" 2>&1
+  # The release list from the crawl: a rebuild asks PIB for nothing.
+  PIB_DIR=$pass PIB_DELAY=500 PIB_REUSE_LIST=1 bun fetch.ts --month "$month" --reg "$reg" --lang "$lang" --columns "$cols" < /dev/null > "$pass/rebuild.log" 2>&1
 done
 echo "== laser $(date +%T)"
 uv run -q -p 3.10 laser.py $files 2> $d/laser.log
