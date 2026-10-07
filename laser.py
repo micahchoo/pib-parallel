@@ -50,6 +50,10 @@ for f in sys.argv[1:]:
 # against 23 in full precision, every vector within cosine 0.9994 of the CPU's.
 # Those vectors share the CPU's key: for LaBSE a difference that size changed
 # no pair, and two keys would only mix the same vectors by another route.
+# LASER_ONLY=en or tx limits a worker to one side. The GPU gains on the LASER3
+# encoders (transformers) and almost nothing on LASER2, an LSTM, which ran at
+# 23 sentences/s there: so the CPU takes English and the GPU the language.
+only = os.environ.get("LASER_ONLY", "")
 reverse = os.environ.get("LASER_REVERSE") == "1"
 fp16 = os.environ.get("LASER_FP16") == "1"
 encoders = {}
@@ -64,7 +68,9 @@ def encoder_for(laser_lang):
 
 
 for lang, (en, tx) in texts.items():
-    for key, laser_lang, wanted in ((al.LASER_ENGLISH, "eng_Latn", en), (al.laser_key(lang), al.LASER[lang][0], tx)):
+    for side, key, laser_lang, wanted in (("en", al.LASER_ENGLISH, "eng_Latn", en), ("tx", al.laser_key(lang), al.LASER[lang][0], tx)):
+        if only and side != only:
+            continue
         cache = al.Cache(path, key)
         order = sorted(wanted, reverse=reverse)
         have = cache.get(order)
