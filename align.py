@@ -214,6 +214,16 @@ def needed(src: list[str], tgt: list[str]) -> list[str]:
     return side(src) + side(tgt)
 
 
+# The search keeps to a band around the diagonal, at least BAND sentences either
+# side or BAND_SHARE of the longer side: translations keep their order. A release
+# answering Parliament listed 8,705 toll plazas, and the full 8,705 x 8,257 table
+# took 25 GB before the kernel killed the run. A document under BAND sentences is
+# searched in full, as before.
+BAND = 200
+BAND_SHARE = 0.10
+_MOVES = ((1, 1), (2, 1), (1, 2), (1, 0), (0, 1))
+
+
 def align(vec: dict, src: list[str], tgt: list[str], vec_tgt: dict | None = None) -> list[tuple[str, str, float]]:
     """Sentence pairs in order; `vec_tgt` holds the target side's vectors when its encoder differs."""
     import numpy as np
@@ -221,42 +231,51 @@ def align(vec: dict, src: list[str], tgt: list[str], vec_tgt: dict | None = None
     if not src or not tgt:
         return []
     vt = vec if vec_tgt is None else vec_tgt
-    # Every similarity the search can ask for, three matrix products up front:
-    # looked up cell by cell it was the slowest part of a run once the vectors
-    # came from the GPU (6% busy).
-    stack = lambda texts: np.stack([vec[t] for t in texts]) if texts else np.zeros((0, len(vec[src[0]])))
-    stack_t = lambda texts: np.stack([vt[t] for t in texts]) if texts else np.zeros((0, len(vt[tgt[0]])))
-    S1, T1 = stack(src), stack_t(tgt)
-    S2, T2 = stack([a + " " + b for a, b in zip(src, src[1:])]), stack_t([a + " " + b for a, b in zip(tgt, tgt[1:])])
-    one, two_one, one_two = (S1 @ T1.T).tolist(), (S2 @ T1.T).tolist(), (S1 @ T2.T).tolist()
+    stack = lambda v, texts, like: np.stack([v[t] for t in texts]) if texts else np.zeros((0, len(v[like])), dtype=np.float32)
+    S1, T1 = stack(vec, src, src[0]), stack(vt, tgt, tgt[0])
+    S2 = stack(vec, [a + " " + b for a, b in zip(src, src[1:])], src[0])
+    T2 = stack(vt, [a + " " + b for a, b in zip(tgt, tgt[1:])], tgt[0])
     n, m = len(src), len(tgt)
-    best = np.full((n + 1, m + 1), -1e9)
-    back = {}
-    best[0, 0] = 0
+    w = max(BAND, int(BAND_SHARE * max(n, m)))
+    lo = [max(0, i * m // n - w) for i in range(n + 1)]
+    hi = [min(m, i * m // n + w) for i in range(n + 1)]
+    NEG = -1e9
+    best = [np.full(hi[i] - lo[i] + 1, NEG) for i in range(n + 1)]
+    move = [np.full(hi[i] - lo[i] + 1, -1, dtype=np.int8) for i in range(n + 1)]
+    best[0][0] = 0.0
+
+    def relax(i2: int, j2: int, value: float, code: int) -> None:
+        if lo[i2] <= j2 <= hi[i2] and value > best[i2][j2 - lo[i2]]:
+            best[i2][j2 - lo[i2]] = value
+            move[i2][j2 - lo[i2]] = code
+
     for i in range(n + 1):
-        for j in range(m + 1):
-            if best[i, j] <= -1e9:
+        a, b = lo[i], hi[i]
+        # The similarities this row's band can ask for, and no others.
+        s11 = (T1[a : b + 1] @ S1[i]).tolist() if i < n else []
+        s21 = (T1[a : b + 1] @ S2[i]).tolist() if i + 1 < n else []
+        s12 = (T2[a : b + 1] @ S1[i]).tolist() if i < n else []
+        for j in range(a, b + 1):
+            v = best[i][j - a]
+            if v <= NEG:
                 continue
-            moves = []
             if i < n and j < m:
-                moves.append((1, 1, one[i][j]))
+                relax(i + 1, j + 1, v + s11[j - a], 0)
             if i + 1 < n and j < m:
-                moves.append((2, 1, two_one[i][j]))
+                relax(i + 2, j + 1, v + s21[j - a], 1)
             if i < n and j + 1 < m:
-                moves.append((1, 2, one_two[i][j]))
+                relax(i + 1, j + 2, v + s12[j - a], 2)
             if i < n:
-                moves.append((1, 0, SKIP))
+                relax(i + 1, j, v + SKIP, 3)
             if j < m:
-                moves.append((0, 1, SKIP))
-            for di, dj, score in moves:
-                if best[i, j] + score > best[i + di, j + dj]:
-                    best[i + di, j + dj] = best[i, j] + score
-                    back[(i + di, j + dj)] = (i, j, score)
+                relax(i, j + 1, v + SKIP, 4)
     pairs, i, j = [], n, m
     while (i, j) != (0, 0):
-        pi, pj, score = back[(i, j)]
-        if i - pi and j - pj:
-            pairs.append((" ".join(src[pi:i]), " ".join(tgt[pj:j]), score))
+        di, dj = _MOVES[move[i][j - lo[i]]]
+        pi, pj = i - di, j - dj
+        if di and dj:
+            s, t = " ".join(src[pi:i]), " ".join(tgt[pj:j])
+            pairs.append((s, t, float(np.dot(vec[s], vt[t]))))
         i, j = pi, pj
     return pairs[::-1]
 

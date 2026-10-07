@@ -189,3 +189,35 @@ def test_a_language_set_for_laser_without_its_vectors_is_an_error_not_a_quiet_fa
         assert "laser.py" in str(e)
     else:
         raise AssertionError("Manipuri was aligned with LaBSE")
+
+
+def test_a_document_of_thousands_of_rows_aligns_in_a_band_without_a_full_table():
+    # A release answering Parliament listed 8,705 toll plazas: the full 8,705 x 8,257 table took
+    # 25 GB and the kernel killed the run. Translations keep their order, so a band around the
+    # diagonal holds the path. 3,000 rows, each the other's translation, one row missing.
+    rng = np.random.default_rng(7)
+    n = 3000
+    unit = rng.normal(size=(n, 64)).astype(np.float32)
+    unit /= np.linalg.norm(unit, axis=1, keepdims=True)
+    src = [f"Row {i}." for i in range(n)]
+    tgt = [f"পংক্তি {i}।" for i in range(n) if i != 1500]
+    vec = {s: unit[i] for i, s in enumerate(src)}
+    vec.update({f"পংক্তি {i}।": unit[i] for i in range(n)})
+    zero = np.zeros(64, dtype=np.float32)
+    for side in (src, tgt):
+        for a, b in zip(side, side[1:]):
+            vec[a + " " + b] = zero
+    import tracemalloc
+    tracemalloc.start()
+    pairs = pa.align(vec, src, tgt)
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    assert len(pairs) == n - 1
+    assert all(s.split()[1].rstrip(".") == t.split()[1].rstrip("।") for s, t, _ in pairs)
+    assert peak < 400 * 2**20, f"{peak / 2**20:.0f} MB for 3,000 rows: the 8,705-row table would not fit"
+
+
+def test_the_band_leaves_a_short_document_exactly_as_the_full_search_did():
+    encode, _ = fake_vectors({"One.": "A", "Two.": "B", "One. Two.": "AB", "এক।": "A", "দুই।": "B"})
+    vec = pa.embedder(encode)(pa.needed(["One.", "Two."], ["এক।", "দুই।"]))
+    assert pa.align(vec, ["One.", "Two."], ["এক।", "দুই।"]) == [("One.", "এক।", 1.0), ("Two.", "দুই।", 1.0)]
